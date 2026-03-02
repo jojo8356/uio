@@ -973,7 +973,7 @@ int uio_rmdir_all(const char *path)
     do {
         if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
             continue;
-        char child[PATH_MAX];
+        char child[PATH_MAX + 256];
         snprintf(child, sizeof(child), "%s\\%s", path, fd.cFileName);
         if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             if (!uio_rmdir_all(child)) ok = 0;
@@ -1031,7 +1031,7 @@ int uio_tempdir(char *buf, size_t size)
 #ifdef _WIN32
     char tmpdir[MAX_PATH];
     GetTempPathA(MAX_PATH, tmpdir);
-    char name[MAX_PATH];
+    char name[MAX_PATH + 64];
     snprintf(name, sizeof(name), "%suio_dir_%lx",
              tmpdir, (unsigned long)GetTickCount());
     if (!uio_mkdir_p(name)) return 0;
@@ -1114,7 +1114,7 @@ static void uio__listdir_rec(const char *base, const char *prefix,
     do {
         if (strcmp(fd.cFileName, ".") == 0 || strcmp(fd.cFileName, "..") == 0)
             continue;
-        char child[PATH_MAX], rel[PATH_MAX];
+        char child[PATH_MAX + 256], rel[PATH_MAX + 256];
         snprintf(child, sizeof(child), "%s\\%s", base, fd.cFileName);
         if (prefix[0])
             snprintf(rel, sizeof(rel), "%s%c%s", prefix, UIO_SEP, fd.cFileName);
