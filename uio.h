@@ -44,6 +44,7 @@
   #include <windows.h>
   #include <direct.h>
   #include <io.h>
+  #include <sys/stat.h>
   #define UIO_SEP '\\'
   #define UIO_SEP_STR "\\"
 #else
