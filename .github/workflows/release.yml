@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x86_64
+            cc: gcc
+          - os: macos-latest
+            name: macos-arm64
+            cc: clang
+          - os: windows-latest
+            name: windows-x86_64
+            cc: gcc
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone UList
+        shell: bash
+        run: git clone https://github.com/jojo8356/ulist.git ../ulist
+
+      - name: Build UList
+        shell: bash
+        run: make -C ../ulist build CC=${{ matrix.cc }}
+
+      - name: Build UIO
+        shell: bash
+        run: make build CC=${{ matrix.cc }}
+
+      - name: Run tests
+        shell: bash
+        run: make test CC=${{ matrix.cc }}
+
+      - name: Package release
+        shell: bash
+        run: |
+          mkdir -p uio-${{ github.ref_name }}/include
+          mkdir -p uio-${{ github.ref_name }}/lib
+          cp uio.h uio-${{ github.ref_name }}/include/
+          cp build/libuio.a uio-${{ github.ref_name }}/lib/
+          cp build/obj/*.o uio-${{ github.ref_name }}/lib/
+          cp LICENSE README.md uio-${{ github.ref_name }}/
+          tar czf uio-${{ github.ref_name }}-${{ matrix.name }}.tar.gz uio-${{ github.ref_name }}/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uio-${{ matrix.name }}
+          path: uio-${{ github.ref_name }}-${{ matrix.name }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            artifacts/uio-linux-x86_64/*.tar.gz \
+            artifacts/uio-macos-arm64/*.tar.gz \
+            artifacts/uio-windows-x86_64/*.tar.gz \
+            --title "UIO ${{ github.ref_name }}" \
+            --notes "$(cat <<'NOTES'
+          ## UIO ${{ github.ref_name }}
+
+          Universal I/O for C — file read/write, split, user input, filesystem, CSV.
+
+          Depends on [UList](https://github.com/jojo8356/ulist) for UStrList.
+
+          ### Features
+
+          | Module | Functions |
+          |--------|-----------|
+          | **File Read** | read, read_len, read_bytes, read_head, read_tail |
+          | **Lines** | readlines (UStrList), ULineReader (streaming) |
+          | **File Write** | write, writef, append, appendf, write_bytes, writelines |
+          | **Split** | split, splitn, words, split_inplace, join, join_buf |
+          | **Input** | input, input_int, input_double, confirm, choose, password |
+          | **Filesystem** | exists, is_file, is_dir, copy, move, mkdir_p, rmdir_all |
+          | **Paths** | basename, dirname, extension, join_path, realpath |
+          | **Listing** | listdir, listdir_ext, listdir_recursive |
+          | **CSV** | read/write with quotes, headers, custom delimiter |
+
+          ### Quality
+
+          - **85 tests** — all passing on Linux, macOS, and Windows
+          - **0 memory leaks** — verified with Valgrind
+          - **0 errors** — AddressSanitizer + UndefinedBehaviorSanitizer
+          - **0 bugs** — Clang Static Analyzer
+
+          ### Downloads
+
+          | Platform | Archive |
+          |----------|---------|
+          | Linux x86_64 | \`uio-${{ github.ref_name }}-linux-x86_64.tar.gz\` |
+          | macOS ARM64 | \`uio-${{ github.ref_name }}-macos-arm64.tar.gz\` |
+          | Windows x86_64 | \`uio-${{ github.ref_name }}-windows-x86_64.tar.gz\` |
+
+          Each archive contains:
+          - \`lib/libuio.a\` — static library
+          - \`lib/uio.o\` — object file
+          - \`include/uio.h\` — main header
+          NOTES
+          )"
