@@ -470,7 +470,7 @@ int uio_appendf(const char *path, const char *fmt, ...)
 
 int uio_writelines(const char *path, const char **lines)
 {
-    FILE *f = fopen(path, "w");
+    FILE *f = fopen(path, "wb");
     if (!f) return 0;
     if (lines) {
         for (int i = 0; lines[i]; i++) {

@@ -54,7 +54,11 @@ static void test_join_path(void)
 {
     char buf[256];
     uio_join_path("/home", "file.txt", buf, sizeof(buf));
+#ifdef _WIN32
+    ASSERT(strcmp(buf, "/home\\file.txt") == 0, "join_path");
+#else
     ASSERT(strcmp(buf, "/home/file.txt") == 0, "join_path");
+#endif
 }
 
 static void test_join_path_trailing_slash(void)
@@ -68,7 +72,11 @@ static void test_join_path3(void)
 {
     char buf[256];
     uio_join_path3("/home", "user", "file.txt", buf, sizeof(buf));
+#ifdef _WIN32
+    ASSERT(strcmp(buf, "/home\\user\\file.txt") == 0, "join_path3");
+#else
     ASSERT(strcmp(buf, "/home/user/file.txt") == 0, "join_path3");
+#endif
 }
 
 static void test_realpath(void)
@@ -77,6 +85,10 @@ static void test_realpath(void)
     char buf[PATH_MAX];
     uio_realpath_buf("build/test_rp.txt", buf, sizeof(buf));
     ASSERT(strlen(buf) > 0, "realpath non-empty");
+#ifdef _WIN32
+    ASSERT(isalpha((unsigned char)buf[0]) && buf[1] == ':', "realpath is absolute");
+#else
     ASSERT(buf[0] == '/', "realpath is absolute");
+#endif
     uio_remove_file("build/test_rp.txt");
 }
