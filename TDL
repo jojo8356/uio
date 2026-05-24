@@ -1,0 +1,222 @@
+ Donc oui, UIO sert si ton angle est :
+
+  > Une boîte à outils C minimaliste pour fichiers, chemins, split, console et
+  > CSV, avec conventions mémoire claires.
+
+  Ce Qui Manque Pour Être Plus Complet
+
+  1. Codes d’erreur
+
+     Beaucoup de fonctions retournent NULL, 0, -1, mais il faut pouvoir savoir
+     pourquoi :
+
+     uio_last_error();
+     uio_strerror(code);
+
+     Ou au minimum documenter errno.
+
+  2. Politique errno
+
+     Décider :
+      - tes fonctions préservent errno ?
+      - elles le définissent ?
+      - elles utilisent un système d’erreur propre ?
+  3. Écriture atomique
+
+     Très utile :
+
+     uio_write_atomic("config.txt", data);
+
+     Écrit dans un .tmp, puis rename.
+
+  4. Append atomique/documenté
+
+     uio_append() peut être délicat si plusieurs processus écrivent. Documenter
+     ce qui est garanti.
+  5. Support FILE*
+
+     Ajouter des variantes :
+
+     uio_read_file(FILE *f, size_t *len);
+     uio_write_file(FILE *f, const void *data, size_t len);
+
+     Utile quand le fichier est déjà ouvert.
+
+  6. Support stdin/stdout
+
+     Exemple :
+
+     uio_read_stdin(&len);
+     uio_read_stream(stdin, &len);
+
+  7. Lecture ligne sans allocation répétée
+
+     Ton uio_line_next() retourne un buffer interne, bien. Il faut aussi une
+     version utilisateur :
+
+     int uio_line_next_buf(ULineReader *r, char *buf, size_t cap);
+
+  8. Gestion des très gros fichiers
+
+     uio_read() doit refuser proprement si le fichier est trop gros pour
+     mémoire.
+  9. Taille max configurable
+
+     Pour éviter de lire 10 Go par erreur :
+
+     uio_read_max(path, max_bytes);
+
+  10. Binary-safe partout
+
+  uio_read() texte OK, mais uio_split() et uio_join() supposent strings C. Bien
+  distinguer texte vs bytes.
+
+  11. Charsets / encodage
+
+  En C, pas besoin de tout convertir, mais documenter : “UIO traite les strings
+  comme bytes UTF-8 sans validation”.
+
+  12. Newline handling
+
+  Pour readlines, décider si les lignes gardent \n ou non.
+
+  Ajouter peut-être :
+
+  uio_readlines_keepends(...)
+
+  13. CSV conforme
+
+  Le CSV est piégeux. Il faut supporter :
+
+  - guillemets "...";
+  - virgules dans champs quoted ;
+  - newlines dans champs quoted ;
+  - échappement "";
+  - champs vides ;
+  - CRLF ;
+  - header manquant ;
+  - lignes avec nombre de colonnes différent.
+
+  14. CSV writer avec escaping correct
+
+  uio_csv_write_row() doit quoter automatiquement si champ contient séparateur,
+  quote, CR/LF.
+
+  15. CSV erreurs de parsing
+
+  Si un quote est non fermé, il faut retourner une erreur exploitable.
+
+  16. Paths Windows
+
+  Si tu veux portable :
+
+  - \ et /;
+  - drive letters C:\;
+  - UNC paths \\server\share;
+  - extension de .bashrc;
+  - basename de chemin avec slash final.
+
+  17. PATH_MAX
+
+  Attention : PATH_MAX n’est pas toujours fiable ou disponible. Ajouter versions
+  alloc :
+
+  char *uio_realpath_alloc(const char *path);
+  char *uio_join_path_alloc(...);
+
+  18. Suppression récursive sûre
+
+  uio_rmdir_all() est dangereux. Il faut :
+
+  - refuser "/";
+  - refuser chaîne vide ;
+  - gérer symlinks sans suivre n’importe quoi ;
+  - tests edge cases.
+
+  19. Symlinks
+
+  Ajouter ou documenter :
+
+  uio_is_symlink();
+  uio_readlink();
+
+  20. Permissions
+
+  Ajouter :
+
+  uio_chmod();
+  uio_is_readable();
+  uio_is_writable();
+
+  21. Copie robuste
+
+  uio_copy() doit préserver ou non :
+
+  - permissions ;
+  - mtime ;
+  - symlinks ;
+  - gros fichiers streaming.
+
+  22. Temp files sûrs
+
+  uio_tempfile() doit éviter les race conditions. Pas juste générer un nom
+  prédictible.
+
+  23. User input non-interactif
+
+  uio_input() doit gérer EOF proprement, par exemple dans un pipe ou CI.
+
+  24. Password portable
+
+  Masquer l’entrée est différent selon POSIX/Windows. Il faut documenter ou
+  gérer les deux.
+
+  25. Timeout input
+
+  Optionnel mais utile :
+
+  uio_input_timeout(...)
+
+  26. Split avec char delimiter
+
+  Pour performance :
+
+  uio_split_char("a,b,c", ',');
+
+  27. Trim helpers
+
+  Comme tu fais split/CSV/input, il manque peut-être :
+
+  uio_trim();
+  uio_ltrim();
+  uio_rtrim();
+
+  28. Glob
+
+  Très utile avec filesystem :
+
+  uio_glob("src/*.c");
+
+  29. Watcher
+
+  Optionnel :
+
+  uio_watch_dir(...)
+
+  Mais peut être hors scope.
+
+  30. Hash/checksum
+
+  Utile pour fichiers :
+
+  uio_sha256_file(...)
+
+  Mais ça peut être hors scope si tu veux rester simple.
+
+  Le Point À Clarifier
+
+  Le nom UIO suggère I/O, mais tu as aussi split, join, CSV, paths, input. Ce
+  n’est pas un problème, mais dans le README tu peux dire :
+
+  > UIO is a small C convenience layer around common file, console, path, text-
+  > splitting and CSV tasks.
